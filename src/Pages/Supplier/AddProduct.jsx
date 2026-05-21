@@ -1,14 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import PageContainer from "../../components/layout/PageContainer";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import { toast } from "react-toastify";
-import { useInventory } from "../../Context/Inventorycontext"; // Import global context engine
+import { useInventory } from "../../Context/Inventorycontext";
 
 export default function AddProduct() {
-  // Use global shared state instead of local useState configuration
-  const { products, setProducts } = useInventory();
+  const { products, addGlobalProduct, refreshDashboardData } = useInventory();
+  const fileInputRef = useRef(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -17,7 +17,8 @@ export default function AddProduct() {
     stock: "",
   });
 
-  // Local state to keep track of products added ONLY during the current active session
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
   const [recentlyAdded, setRecentlyAdded] = useState([]);
 
   const handleChange = (e) => {
@@ -27,7 +28,22 @@ export default function AddProduct() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  // Helper function to trigger hidden input click manually
+  const triggerFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!form.name || !form.category || !form.price || !form.stock) {
@@ -35,82 +51,92 @@ export default function AddProduct() {
       return;
     }
 
-    // Auto-calculate structural status strings to match your StockList table configurations
     const currentStock = Number(form.stock);
-    let calculatedStatus = "In Stock";
-    if (currentStock === 0) {
-      calculatedStatus = "Out of Stock";
-    } else if (currentStock <= 5) {
-      calculatedStatus = "Low Stock";
-    }
-
-    const inputName = form.name.trim();
     const inputPrice = Number(form.price);
+    const inputName = form.name.trim();
 
-    // Check if product already exists in system storage to aggregate the count
-    const existingIndex = products.findIndex(
-      (p) => p.name.toLowerCase() === inputName.toLowerCase()
+    const existingProduct = products?.find(
+      (p) => p && p.name && p.name.toLowerCase() === inputName.toLowerCase()
     );
 
-    let updatedProducts = [...products];
-    let loggedItem = null;
-
-    if (existingIndex !== -1) {
-      // Product exists -> Accumulate stock levels and capture the updated object
-      const existingProduct = products[existingIndex];
-      const nextStockTotal = existingProduct.stock + currentStock;
-
-      let nextStatus = "In Stock";
-      if (nextStockTotal === 0) nextStatus = "Out of Stock";
-      else if (nextStockTotal <= 5) nextStatus = "Low Stock";
-
-      const updatedProduct = {
-        ...existingProduct,
-        stock: nextStockTotal,
-        price: inputPrice, 
-        status: nextStatus,
-      };
-
-      updatedProducts[existingIndex] = updatedProduct;
-      loggedItem = updatedProduct;
-    } else {
-      // Product is completely new -> Append fresh record entry node
-      const newProduct = {
-        id: Date.now(),
-        name: inputName,
-        category: form.category,
-        price: inputPrice,
-        stock: currentStock,
-        status: calculatedStatus,
-        image: "https://unsplash.com"
-      };
-
-      updatedProducts = [newProduct, ...updatedProducts];
-      loggedItem = newProduct;
+    const formData = new FormData();
+    formData.append("name", inputName);
+    formData.append("category", form.category.trim());
+    formData.append("price", inputPrice);
+    formData.append("stock", currentStock);
+    formData.append("quantity", currentStock);
+    
+    if (imageFile) {
+      formData.append("image", imageFile);
+    } else if (existingProduct && existingProduct.image) {
+      formData.append("image", existingProduct.image);
     }
 
-    // Commit changes securely to your global system state context tree
-    setProducts(updatedProducts);
+    const result = await addGlobalProduct(formData);
 
-    // Track it locally inside session tracker state arrays
-    setRecentlyAdded((prev) => {
-      const filtered = prev.filter((item) => item.name.toLowerCase() !== inputName.toLowerCase());
-      return [loggedItem, ...filtered];
-    });
+    if (result && result.success) {
+      toast.success("Product saved to database successfully");
 
-    toast.success("Product added successfully");
+      if (refreshDashboardData) {
+        await refreshDashboardData();
+      }
 
-    setForm({
-      name: "",
-      category: "",
-      price: "",
-      stock: "",
-    });
+      const finalizedImage = imagePreview || (existingProduct && existingProduct.image ? existingProduct.image : "https://unsplash.com");
+
+      const loggedItem = {
+        id: Date.now(),
+        name: inputName,
+        category: form.category.trim(),
+        price: inputPrice,
+        sessionStock: currentStock, 
+        image: finalizedImage
+      };
+
+      setRecentlyAdded((prev) => {
+        const filtered = prev.filter((item) => item && item.name && item.name.toLowerCase() !== inputName.toLowerCase());
+        return [loggedItem, ...filtered];
+      });
+
+      setForm({
+        name: "",
+        category: "",
+        price: "",
+        stock: "",
+      });
+      setImageFile(null);
+      setImagePreview("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } else {
+      toast.error(result?.error || "Failed to persist product item to server.");
+    }
+  };
+
+  // Modern SaaS Layout Inline Style Blocks
+  const headerWrapperStyle = {
+    marginBottom: "32px",
+    borderBottom: "1px solid #f1f5f9",
+    paddingBottom: "16px",
+    textAlign: "left"
+  };
+
+  const mainHeadingStyle = {
+    margin: "0 0 6px 0",
+    fontSize: "26px",
+    fontWeight: "700",
+    color: "#0f172a",
+    letterSpacing: "-0.02em"
+  };
+
+  const subHeadingStyle = {
+    margin: 0,
+    fontSize: "14px",
+    color: "#64748b",
+    fontWeight: "400"
   };
 
   const layoutContainerStyle = {
     display: "flex",
-    gap: "32px",
+    gap: "36px",
     width: "100%",
     alignItems: "flex-start",
     boxSizing: "border-box",
@@ -119,46 +145,116 @@ export default function AddProduct() {
 
   const formContainerStyle = {
     background: "#ffffff",
-    padding: "32px",
-    borderRadius: "12px",
+    padding: "36px",
+    borderRadius: "16px",
     width: "100%",
     maxWidth: "480px",
-    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.03)",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
     border: "1px solid #e2e8f0",
-    boxSizing: "border-box",
+    boxSizing: "border-box"
   };
 
   const rightSideContainerStyle = {
     flex: 1,
-    minWidth: "320px",
+    minWidth: "340px",
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    gap: "28px"
+  };
+
+  const contentBoxWrapperStyle = {
+    backgroundColor: "#ffffff",
+    borderRadius: "16px",
+    border: "1px solid #e2e8f0",
+    padding: "28px",
+    boxShadow: "0 2px 8px -1px rgba(0, 0, 0, 0.02)",
     boxSizing: "border-box"
+  };
+
+  const columnHeadingStyle = {
+    margin: "0 0 20px 0",
+    fontSize: "16px",
+    fontWeight: "700",
+    color: "#0f172a",
+    letterSpacing: "-0.01em",
+    textAlign: "left",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px"
   };
 
   const listScrollStyle = {
     display: "flex",
     flexDirection: "column",
-    gap: "16px",
-    maxHeight: "480px",
+    gap: "14px",
+    maxHeight: "280px",
     overflowY: "auto",
-    paddingRight: "8px",
+    paddingRight: "4px",
     boxSizing: "border-box"
+  };
+
+  // FIXED & OPTIMIZED CUSTOM UPLOADER FIELDS
+  const fileUploadContainerStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    textAlign: "left",
+    width: "100%",
+    boxSizing: "border-box"
+  };
+
+  const fileLabelTitleStyle = {
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#334155"
+  };
+
+  const localizedBoxSelectorWrapperStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    height: "42px", 
+    padding: "0 14px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px", 
+    backgroundColor: "#ffffff",
+    boxSizing: "border-box",
+    cursor: "pointer",
+    transition: "all 0.2s ease-in-out"
+  };
+
+  const filenameTextStyle = {
+    fontSize: "14px",
+    color: imageFile ? "#0f172a" : "#94a3b8",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    maxWidth: "260px"
+  };
+
+  const browseBadgeButtonStyle = {
+    fontSize: "12px",
+    fontWeight: "600",
+    backgroundColor: "#f1f5f9",
+    color: "#475569",
+    padding: "4px 10px",
+    borderRadius: "6px",
+    border: "1px solid #e2e8f0"
   };
 
   return (
     <PageContainer>
-      <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ margin: "0 0 4px 0", fontSize: "24px", fontWeight: "700", color: "#0f172a" }}>
-          Add Product
-        </h2>
-        <p style={{ margin: 0, fontSize: "14px", color: "#64748b" }}>
-          Create and catalog new inventory items into the warehouse systems.
-        </p>
+      <div style={headerWrapperStyle}>
+        <h2 style={mainHeadingStyle}>Add Product</h2>
+        <p style={subHeadingStyle}>Create and catalog new inventory items into the warehouse systems.</p>
       </div>
 
       <div style={layoutContainerStyle}>
-        {/* LEFT COLUMN: FORM */}
+        {/* LEFT COLUMN: ENHANCED BALANCED INPUT FORM */}
         <div style={formContainerStyle}>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <Input
               label="Product Name"
               name="name"
@@ -193,116 +289,129 @@ export default function AddProduct() {
               onChange={handleChange}
             />
 
-            <Button type="submit" variant="primary" style={{ width: "100%", marginTop: "12px", height: "42px" }}>
+            {/* HIGH-END OPTIMIZED ASSET FILE INPUT CUSTOM UPLOADER */}
+            <div style={fileUploadContainerStyle}>
+              <label style={fileLabelTitleStyle}>Product Image Asset</label>
+              
+              {/* Fake visual shell input block container */}
+              <div 
+                onClick={triggerFileSelect}
+                style={localizedBoxSelectorWrapperStyle}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.borderColor = "#2563eb";
+                  e.currentTarget.style.boxShadow = "0 0 0 1px #2563eb";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.borderColor = "#cbd5e1";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                <span style={filenameTextStyle}>
+                  {imageFile ? imageFile.name : "Choose local image asset file..."}
+                </span>
+                <span style={browseBadgeButtonStyle}>Browse</span>
+              </div>
+
+              {/* Native real element remains hidden underneath to handle streams safely */}
+              <input 
+                ref={fileInputRef}
+                type="file" 
+                accept="image/*" 
+                onChange={handleFileChange} 
+                style={{ display: "none" }} 
+              />
+
+              {imagePreview && (
+                <div style={{ marginTop: "10px", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <img src={imagePreview} alt="Upload Preview" style={{ width: "54px", height: "54px", borderRadius: "8px", objectFit: "cover", border: "1px solid #cbd5e1" }} />
+                  <span style={{ fontSize: "12px", color: "#16a34a", fontWeight: "600" }}>✓ Preview loaded cleanly</span>
+                </div>
+              )}
+            </div>
+
+            <Button 
+              type="submit" 
+              variant="primary" 
+              style={{ 
+                width: "100%", 
+                height: "44px", 
+                fontSize: "14px", 
+                fontWeight: "600", 
+                borderRadius: "10px", 
+                marginTop: "4px",
+                boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)" 
+              }}
+            >
               Add Product Item
             </Button>
           </form>
         </div>
 
-        {/* RIGHT COLUMN: LIVE SYSTEM STOCK */}
+        {/* RIGHT COLUMN: PREVIEWS */}
         <div style={rightSideContainerStyle}>
-          {/* Section 1: All current global system products */}
-          <h3 style={{ margin: "0 0 16px 0", fontSize: "18px", fontWeight: "600", color: "#0f172a" }}>
-            Current System Stock
-          </h3>
-          
-          {products && products.length > 0 ? (
-            <div style={{ ...listScrollStyle, marginBottom: "32px" }}>
-              {products.map((p) => (
-                <Card
-                  key={p.id}
-                  title={`${p.category} • ${p.stock} Units`}
-                  value={`₹${Number(p.price).toLocaleString("en-IN")}`}
-                  icon={
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", boxSizing: "border-box" }}>
-                      <img 
-                        src={p.image || "https://unsplash.com"} 
-                        alt={p.name} 
-                        style={{ 
-                          width: "40px", 
-                          height: "40px", 
-                          borderRadius: "8px", 
-                          objectFit: "cover", 
-                          border: "1px solid #e2e8f0",
-                          backgroundColor: "#f8fafc"
-                        }} 
-                      />
-                      <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                        <span style={{ fontSize: "15px", fontWeight: "600", color: "#0f172a", display: "block" }}>
-                          {p.name}
-                        </span>
+          <div style={contentBoxWrapperStyle}>
+            <h3 style={columnHeadingStyle}>
+              <span>📦</span> Current System Stock
+            </h3>
+            {products && products.length > 0 ? (
+              <div style={listScrollStyle}>
+                {products.map((p) => p && (
+                  <Card
+                    key={p.id}
+                    title={`${p.category || 'General'} • ${p.stock || 0} Units`}
+                    value={`₹${Number(p.price || 0).toLocaleString("en-IN")}`}
+                    icon={
+                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                        <img 
+                          src={p.image || "https://unsplash.com"} 
+                          alt={p.name} 
+                          style={{ width: "42px", height: "42px", borderRadius: "8px", objectFit: "cover", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }} 
+                        />
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontSize: "15px", fontWeight: "600", color: "#0f172a", display: "block" }}>
+                            {p.name}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  }
-                />
-              ))}
-            </div>
-          ) : (
-            <div 
-              style={{
-                border: "2px dashed #e2e8f0",
-                borderRadius: "12px",
-                padding: "40px",
-                textAlign: "center",
-                color: "#94a3b8",
-                fontSize: "14px",
-                marginBottom: "32px"
-              }}
-            >
-              No products found in system storage.
-            </div>
-          )}
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ border: "2px dashed #e2e8f0", borderRadius: "12px", padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>
+                No active products found in database storage.
+              </div>
+            )}
+          </div>
 
-          {/* Section 2: Segregated list displaying items added during this current open operational session */}
-          <h3 style={{ margin: "0 0 16px 0", fontSize: "18px", fontWeight: "600", color: "#0f172a" }}>
-            Recently Added This Session
-          </h3>
-
-          {recentlyAdded.length > 0 ? (
-            <div style={listScrollStyle}>
-              {recentlyAdded.map((p) => (
-                <Card
-                  key={`session-${p.id}`}
-                  title={`${p.category} • Last Added State`}
-                  value={`₹${Number(p.price).toLocaleString("en-IN")}`}
-                  icon={
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", boxSizing: "border-box" }}>
-                      <img 
-                        src={p.image || "https://unsplash.com"} 
-                        alt={p.name} 
-                        style={{ 
-                          width: "40px", 
-                          height: "40px", 
-                          borderRadius: "8px", 
-                          objectFit: "cover", 
-                          border: "1px solid #e2e8f0",
-                          backgroundColor: "#f8fafc"
-                        }} 
-                      />
-                      <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                        <span style={{ fontSize: "15px", fontWeight: "600", color: "#0f172a", display: "block" }}>
-                          {p.name}
-                        </span>
+          <div style={contentBoxWrapperStyle}>
+            <h3 style={columnHeadingStyle}>
+              <span>📋</span> Recently Added Products
+            </h3>
+            {recentlyAdded.length > 0 ? (
+              <div style={listScrollStyle}>
+                {recentlyAdded.map((item) => item && (
+                  <Card
+                    key={item.id}
+                    title={`${item.category} • ${item.sessionStock} Session Units`}
+                    value={`₹${Number(item.price).toLocaleString("en-IN")}`}
+                    icon={
+                      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                        <img src={item.image} alt={item.name} style={{ width: "42px", height: "42px", borderRadius: "8px", objectFit: "cover", border: "1px solid #e2e8f0" }} />
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontSize: "15px", fontWeight: "600", color: "#0f172a" }}>{item.name}</span>
+                        </div>
                       </div>
-                    </div>
-                  }
-                />
-              ))}
-            </div>
-          ) : (
-            <div 
-              style={{
-                border: "2px dashed #e2e8f0",
-                borderRadius: "12px",
-                padding: "40px",
-                textAlign: "center",
-                color: "#94a3b8",
-                fontSize: "14px"
-              }}
-            >
-              No products added during this session yet.
-            </div>
-          )}
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ border: "2px dashed #e2e8f0", borderRadius: "12px", padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>
+                No new products submitted during this active terminal session.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </PageContainer>

@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
+  // Fixed: Forcing the communication path straight to your active server port channel
+  baseURL: "http://localhost:8085", 
   headers: {
     "Content-Type": "application/json",
   },

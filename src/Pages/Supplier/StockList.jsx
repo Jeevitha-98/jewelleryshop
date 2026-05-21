@@ -5,160 +5,8 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import { useInventory } from "../../Context/Inventorycontext";
 
-function ProductTable({ products, onEdit, onDelete, onView }) {
-  const cellStyle = {
-    padding: "16px 20px",
-    color: "#334155",
-    borderBottom: "1px solid #f1f5f9",
-    fontSize: "14px",
-    verticalAlign: "middle",
-    boxSizing: "border-box",
-  };
-
-  const thStyle = {
-    padding: "16px 20px",
-    background: "#f8fafc",
-    color: "#64748b",
-    fontWeight: "600",
-    fontSize: "13px",
-    textAlign: "left",
-    borderBottom: "1px solid #e2e8f0",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    boxSizing: "border-box",
-  };
-
-  const inlineBtnBase = {
-    height: "36px",
-    padding: "0 16px",
-    borderRadius: "8px",
-    border: "1px solid transparent",
-    fontSize: "13px",
-    fontWeight: "600",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-    whiteSpace: "nowrap",
-    boxSizing: "border-box",
-    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02)",
-  };
-
-  return (
-    <div 
-      style={{ 
-        background: "white", 
-        borderRadius: "12px", 
-        border: "1px solid #e2e8f0", 
-        overflow: "hidden", 
-        width: "100%",
-        boxSizing: "border-box",
-        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.02)"
-      }}
-    >
-      <table style={{ width: "100%", borderCollapse: "collapse", boxSizing: "border-box" }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Product</th>
-            <th style={thStyle}>Category</th>
-            <th style={thStyle}>Stock</th>
-            <th style={thStyle}>Price</th>
-            <th style={thStyle}>Status</th>
-            <th style={thStyle}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products && products.length > 0 ? (
-            products.map((p) => (
-              <tr 
-                key={p.id}
-                style={{ transition: "background 0.2s", boxSizing: "border-box" }}
-                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#f8fafc")}
-                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-              >
-                <td style={cellStyle}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px", boxSizing: "border-box" }}>
-                    <img 
-                      src={p.image || "https://unsplash.com"} 
-                      alt={p.name} 
-                      style={{ 
-                        width: "40px", 
-                        height: "40px", 
-                        borderRadius: "8px", 
-                        objectFit: "cover", 
-                        border: "1px solid #e2e8f0",
-                        backgroundColor: "#f8fafc"
-                      }} 
-                    />
-                    <span style={{ fontWeight: "500", color: "#0f172a" }}>{p.name}</span>
-                  </div>
-                </td>
-                
-                <td style={cellStyle}>{p.category}</td>
-                <td style={{ ...cellStyle, fontFamily: "monospace", color: "#475569" }}>{p.stock}</td>
-                <td style={{ ...cellStyle, fontWeight: "500" }}>₹{p.price}</td>
-                
-                <td style={cellStyle}>
-                  <span
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: "8px",
-                      border: "1px solid",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      display: "inline-block",
-                      boxSizing: "border-box",
-                      backgroundColor: p.stock > 5 ? "#f0fdf4" : p.stock > 0 ? "#fefce8" : "#fef2f2",
-                      borderColor: p.stock > 5 ? "#bbf7d0" : p.stock > 0 ? "#fef08a" : "#fee2e2",
-                      color: p.stock > 5 ? "#166534" : p.stock > 0 ? "#854d0e" : "#991b1b",
-                    }}
-                  >
-                    {p.stock > 5 ? "In Stock" : p.stock > 0 ? "Low Stock" : "Out of Stock"}
-                  </span>
-                </td>
-
-                <td style={cellStyle}>
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center", boxSizing: "border-box" }}>
-                    <button 
-                      onClick={() => onView(p)} 
-                      style={{ ...inlineBtnBase, backgroundColor: "#ffffff", borderColor: "#cbd5e1", color: "#475569" }}
-                    >
-                      View
-                    </button>
-
-                    <button 
-                      onClick={() => onEdit(p)} 
-                      style={{ ...inlineBtnBase, backgroundColor: "#2563eb", color: "#ffffff" }}
-                    >
-                      Edit
-                    </button>
-
-                    <button 
-                      onClick={() => onDelete(p.id)} 
-                      style={{ ...inlineBtnBase, backgroundColor: "#fef2f2", borderColor: "#fee2e2", color: "#dc2626" }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="6" style={{ ...cellStyle, textAlign: "center", color: "#64748b", padding: "32px" }}>
-                No products found matching filters.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export default function StockList() {
-  const { products, setProducts } = useInventory();
+  const { products, refreshDashboardData } = useInventory();
   
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -167,14 +15,20 @@ export default function StockList() {
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 6; 
+
+  useEffect(() => {
+    if (refreshDashboardData) {
+      refreshDashboardData();
+    }
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [search, category]);
 
   const handleDelete = (id) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+    alert("Delete operations require custom backend routing configurations.");
   };
 
   const handleEdit = (product) => {
@@ -183,27 +37,6 @@ export default function StockList() {
   };
 
   const handleUpdate = () => {
-    if (!selectedProduct?.id) return;
-
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === selectedProduct.id) {
-          const updatedStock = Number(selectedProduct.stock);
-          let updatedStatus = "In Stock";
-          if (updatedStock === 0) updatedStatus = "Out of Stock";
-          else if (updatedStock <= 5) updatedStatus = "Low Stock";
-
-          return {
-            ...selectedProduct,
-            stock: updatedStock,
-            price: Number(selectedProduct.price),
-            status: updatedStatus
-          };
-        }
-        return p;
-      })
-    );
-
     setIsOpen(false);
     setSelectedProduct(null);
   };
@@ -212,11 +45,11 @@ export default function StockList() {
     alert(`Product: ${product.name}\nCategory: ${product.category}\nStock: ${product.stock}\nPrice: ₹${product.price}`);
   };
 
-  const continuousCategories = Array.from(new Set((products || []).map((p) => p.category).filter(Boolean)));
+  const continuousCategories = Array.from(new Set((products || []).map((p) => p && p.category).filter(Boolean)));
 
   const filteredProducts = (products || [])
-    .filter((p) => (p?.name || "").toLowerCase().includes(search.toLowerCase()))
-    .filter((p) => (category ? p?.category === category : true));
+    .filter((p) => p && (p?.name || "").toLowerCase().includes(search.toLowerCase()))
+    .filter((p) => p && (category ? p?.category === category : true));
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
@@ -225,145 +58,344 @@ export default function StockList() {
     currentPage * itemsPerPage
   );
 
+  // Modern SaaS Typography Layout Objects
+  const headerWrapperStyle = {
+    fontFamily: "'Inter', sans-serif",
+    marginBottom: "32px",
+    borderBottom: "1px solid #f1f5f9",
+    paddingBottom: "16px",
+    textAlign: "left"
+  };
+
+  const mainHeadingStyle = {
+    margin: "0 0 6px 0",
+    fontSize: "26px",
+    fontWeight: "700",
+    color: "#0f172a",
+    letterSpacing: "-0.02em"
+  };
+
+  const subHeadingStyle = {
+    margin: 0,
+    fontSize: "14px",
+    color: "#64748b",
+    fontWeight: "400"
+  };
+
+  // Modern Unified Console Bar Style Wrapper
+  const unifiedConsoleBarStyle = {
+    display: "flex",
+    alignItems: "center",
+    width: "100%",
+    maxWidth: "800px", 
+    height: "50px",
+    backgroundColor: "#ffffff",
+    borderRadius: "25px", 
+    border: "1px solid #cbd5e1",
+    padding: "0 24px 0 20px",
+    boxShadow: "0 4px 10px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)",
+    boxSizing: "border-box",
+    marginBottom: "36px",
+    gap: "12px",
+    transition: "all 0.2s ease-in-out",
+    fontFamily: "'Inter', sans-serif"
+  };
+
+  const searchInputWrapperStyle = {
+    display: "flex",
+    alignItems: "center",
+    flex: 1,
+    height: "100%",
+    position: "relative",
+    gap: "12px"
+  };
+
+  const cleanRawInputStyle = {
+    width: "100%",
+    height: "100%",
+    border: "none",
+    outline: "none",
+    fontSize: "14px",
+    color: "#0f172a",
+    backgroundColor: "transparent",
+    fontFamily: "'Inter', sans-serif",
+    fontWeight: "400"
+  };
+
+  const verticalDividerLineStyle = {
+    width: "1px",
+    height: "24px",
+    backgroundColor: "#e2e8f0",
+    margin: "0 8px"
+  };
+
+  const premiumDropdownSelectStyle = {
+    border: "none",
+    outline: "none",
+    fontSize: "13px",
+    color: "#475569",
+    backgroundColor: "transparent",
+    fontFamily: "'Inter', sans-serif",
+    fontWeight: "600",
+    cursor: "pointer",
+    paddingRight: "8px",
+    minWidth: "140px",
+    height: "100%",
+    textAlign: "right"
+  };
+
+  // Asymmetrical Product Component Data Grid Elements
+  const productGridStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+    gap: "24px",
+    width: "100%",
+    boxSizing: "border-box"
+  };
+
+  const itemCardStyle = {
+    backgroundColor: "#ffffff",
+    borderRadius: "16px",
+    border: "1px solid #e2e8f0",
+    padding: "20px",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+    transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxSizing: "border-box",
+    position: "relative"
+  };
+
+  const imageFrameStyle = {
+    width: "100%",
+    height: "180px",
+    borderRadius: "12px",
+    objectFit: "cover",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #f1f5f9"
+  };
+
+  const cardMetaRowStyle = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    textAlign: "left"
+  };
+
+  const productTitleStyle = {
+    margin: 0,
+    fontSize: "16px",
+    fontWeight: "700",
+    color: "#0f172a",
+    letterSpacing: "-0.01em"
+  };
+
+  const categoryTagStyle = {
+    fontSize: "12px",
+    color: "#64748b",
+    fontWeight: "500",
+    marginTop: "2px",
+    display: "block"
+  };
+
+  const actionGroupStyle = {
+    display: "flex",
+    gap: "8px",
+    width: "100%",
+    boxSizing: "border-box",
+    marginTop: "auto"
+  };
+
+  const actionButtonStyle = {
+    flex: 1,
+    height: "36px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    fontWeight: "600",
+    cursor: "pointer",
+    border: "1px solid transparent",
+    transition: "background-color 0.15s ease",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxSizing: "border-box"
+  };
+
   return (
     <PageContainer>
-      <div>
-        <h2 style={{ margin: "0 0 4px 0", fontSize: "24px", fontWeight: "700", color: "#0f172a" }}>Stock Management</h2>
-        <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#64748b" }}>Manage your products, stock levels, and inventory</p>
+      <div style={headerWrapperStyle}>
+        <h2 style={mainHeadingStyle}>Stock Matrix Catalog</h2>
+        <p style={subHeadingStyle}>Monitor operational metrics, warehouse storage deep-allocations, and inventory balances.</p>
       </div>
 
-      {/* FILTER PANEL ROW CONTAINER */}
+      {/* NEW INTEGRATED SINGLE CONSOLE BAR SELECTION UNIT */}
       <div 
-        style={{
-          display: "flex",
-          gap: "24px",
-          alignItems: "flex-end", 
-          flexWrap: "wrap",
-          width: "100%",
-          boxSizing: "border-box",
-          background: "#ffffff",
-          padding: "24px",
-          borderRadius: "12px",
-          border: "1px solid #e2e8f0",
-          marginBottom: "24px"
+        style={unifiedConsoleBarStyle}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = "#2563eb";
+          e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(37, 99, 235, 0.08), 0 8px 10px -6px rgba(37, 99, 235, 0.08)";
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = "#cbd5e1";
+          e.currentTarget.style.boxShadow = "0 4px 10px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)";
         }}
       >
-        {/* LEFT COLUMN: STANDARDIZED NATIVE INPUT BOX TO ENSURE BASELINE ALIGNMENT */}
-        <div style={{ flex: 1, minWidth: "260px", display: "flex", flexDirection: "column", gap: "6px" }}>
-          <label style={{ fontSize: "14px", fontWeight: "500", color: "#334155" }}>
-            Search Product
-          </label>
-          <input
+        <div style={searchInputWrapperStyle}>
+          {/* Vector Minimalist Search Loupe Graphic Asset Icon */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input 
             type="text"
-            placeholder="Search by name..."
-            value={search}
+            placeholder="Type to filter catalog entries by product name..." 
+            value={search} 
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              height: "40px",
-              width: "100%",
-              padding: "0 12px",
-              borderRadius: "8px",
-              border: "1px solid #cbd5e1",
-              outline: "none",
-              fontSize: "14px",
-              color: "#0f172a",
-              backgroundColor: "#ffffff",
-              boxSizing: "border-box"
-            }}
+            style={cleanRawInputStyle}
           />
         </div>
 
-        {/* RIGHT COLUMN: CATEGORY MENU */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "240px" }}>
-          <span style={{ fontSize: "14px", fontWeight: "500", color: "#334155", display: "block" }}>
-            Category
-          </span>
+        {/* Inline Separator Component Line */}
+        <div style={verticalDividerLineStyle} />
+
+        {/* Categories Anchor Dropdown Selection Layer */}
+        <div style={{ display: "flex", alignItems: "center", height: "100%" }}>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            style={{
-              height: "40px",
-              width: "100%",
-              padding: "0 12px",
-              borderRadius: "8px",
-              border: "1px solid #cbd5e1",
-              outline: "none",
-              fontSize: "14px",
-              color: "#0f172a",
-              backgroundColor: "#ffffff",
-              cursor: "pointer",
-              boxSizing: "border-box"
-            }}
+            style={premiumDropdownSelectStyle}
           >
             <option value="">All Categories</option>
-            {continuousCategories.map((cat, idx) => (
-              <option key={idx} value={cat}>{cat}</option>
+            {continuousCategories.map((cat, i) => (
+              <option key={i} value={cat}>{cat}</option>
             ))}
           </select>
         </div>
       </div>
 
-      <ProductTable 
-        products={currentProducts} 
-        onEdit={handleEdit} 
-        onDelete={handleDelete} 
-        onView={handleView} 
-      />
+      {/* CARD GRID LAYOUT */}
+      <div style={productGridStyle}>
+        {currentProducts && currentProducts.length > 0 ? (
+          currentProducts.map((p) => p && (
+            <div 
+              key={p.id}
+              style={itemCardStyle}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "0 12px 20px -3px rgba(0, 0, 0, 0.08)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.03)";
+              }}
+            >
+              <img 
+                src={p.image || "https://unsplash.com"} 
+                alt={p.name} 
+                style={imageFrameStyle} 
+              />
 
+              <div style={cardMetaRowStyle}>
+                <div>
+                  <h4 style={productTitleStyle}>{p.name}</h4>
+                  <span style={categoryTagStyle}>{p.category || "General"}</span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: "16px", fontWeight: "700", color: "#0f172a", display: "block" }}>
+                    ₹{Number(p.price || 0).toFixed(2)}
+                  </span>
+                  <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "600" }}>UNIT VAL</span>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#f8fafc", padding: "10px 14px", borderRadius: "10px", border: "1px solid #f1f5f9" }}>
+                <span style={{ fontSize: "12px", color: "#475569", fontWeight: "600" }}>
+                  QTY: <span style={{ fontFamily: "monospace", fontSize: "13px", fontWeight: "700", color: "#0f172a" }}>{p.stock}</span>
+                </span>
+                
+                <span style={{
+                  padding: "4px 10px",
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.02em",
+                  backgroundColor: p.stock > 5 ? "#e6f4ea" : p.stock > 0 ? "#fef9c3" : "#fee2e2",
+                  color: p.stock > 5 ? "#137333" : p.stock > 0 ? "#a16207" : "#c53030",
+                }}>
+                  {p.stock > 5 ? "In Stock" : p.stock > 0 ? "Low Stock" : "Empty"}
+                </span>
+              </div>
+
+              <div style={actionGroupStyle}>
+                <button 
+                  onClick={() => onView(p)}
+                  style={{ ...actionButtonStyle, backgroundColor: "#ffffff", border: "1px solid #cbd5e1", color: "#475569" }}
+                >
+                  View
+                </button>
+                <button 
+                  onClick={() => onEdit(p)}
+                  style={{ ...actionButtonStyle, backgroundColor: "#2563eb", color: "#ffffff" }}
+                >
+                  Edit
+                </button>
+                <button 
+                  onClick={() => onDelete(p.id)}
+                  style={{ ...actionButtonStyle, backgroundColor: "#fee2e2", color: "#c53030" }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div style={{ gridColumn: "1 / -1", border: "2px dashed #e2e8f0", borderRadius: "16px", padding: "64px", textAlign: "center", color: "#94a3b8", fontSize: "14px", fontFamily: "'Inter', sans-serif" }}>
+            No registered database products discovered matching current filters.
+          </div>
+        )}
+      </div>
+
+      {/* PAGINATION PANEL FOOTER LINK UNITS */}
       {totalPages > 1 && (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px", marginTop: "24px" }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px", marginTop: "32px", fontFamily: "'Inter', sans-serif" }}>
           <Button 
+            variant="secondary" 
             disabled={currentPage === 1} 
-            onClick={() => setCurrentPage((p) => p - 1)}
-            variant="secondary"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            style={{ padding: "0 14px", height: "36px", fontWeight: "600" }}
           >
             Previous
           </Button>
-          <span style={{ fontSize: "14px", color: "#475569" }}>
+          <span style={{ fontSize: "14px", color: "#475569", fontWeight: "600" }}>
             Page {currentPage} of {totalPages}
           </span>
           <Button 
+            variant="secondary" 
             disabled={currentPage === totalPages} 
-            onClick={() => setCurrentPage((p) => p + 1)}
-            variant="secondary"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            style={{ padding: "0 14px", height: "36px", fontWeight: "600" }}
           >
             Next
           </Button>
         </div>
       )}
 
-      {isOpen && selectedProduct && (
-        <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Edit Product Matrix">
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "4px 0" }}>
-            <Input
-              label="Product Name"
-              value={selectedProduct.name}
-              onChange={(e) => setSelectedProduct({ ...selectedProduct, name: e.target.value })}
-            />
-            <Input
-              label="Category"
-              value={selectedProduct.category}
-              onChange={(e) => setSelectedProduct({ ...selectedProduct, category: e.target.value })}
-            />
-            <Input
-              label="Price (₹)"
-              type="number"
-              value={selectedProduct.price}
-              onChange={(e) => setSelectedProduct({ ...selectedProduct, price: e.target.value })}
-            />
-            <Input
-              label="Stock Count"
-              type="number"
-              value={selectedProduct.stock}
-              onChange={(e) => setSelectedProduct({ ...selectedProduct, stock: e.target.value })}
-            />
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "8px" }}>
-              <Button variant="secondary" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleUpdate}>Save Modifications</Button>
+      {/* MASTER DATA MODAL */}
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Modify Inventory Balances">
+        {selectedProduct && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "18px", fontFamily: "'Inter', sans-serif", marginTop: "8px" }}>
+            <Input label="Product Name" value={selectedProduct.name} disabled />
+            <Input label="Available Stock" type="number" value={selectedProduct.stock} onChange={(e) => setSelectedProduct({ ...selectedProduct, stock: e.target.value })} />
+            <Input label="Unit Price" type="number" value={selectedProduct.price} onChange={(e) => setSelectedProduct({ ...selectedProduct, price: e.target.value })} />
+            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px" }}>
+              <Button variant="secondary" onClick={() => setIsOpen(false)} style={{ flex: 1, height: "42px", fontWeight: "600" }}>Cancel</Button>
+              <Button variant="primary" onClick={handleUpdate} style={{ flex: 1, height: "42px", fontWeight: "600" }}>Update Stock</Button>
             </div>
           </div>
-        </Modal>
-      )}
+        )}
+      </Modal>
     </PageContainer>
   );
 }
